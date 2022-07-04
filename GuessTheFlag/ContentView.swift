@@ -5,10 +5,13 @@
 //  Created by Nozhan Amiri on 7/4/22.
 //
 
+import ConfettiSwiftUI
 import SwiftUI
 
 struct ContentView: View {
-    @State private var showingResultAlert = false
+//    MARK: - States
+    
+    @State private var confettiCounter = 0
     
     @State private var countries = [
         "Estonia",
@@ -26,9 +29,17 @@ struct ContentView: View {
     ]
         .shuffled()
     
+    @State private var showingResultAlert = false
+    
+    @State private var showingCongratsAlert = false
+    
     @State private var correctAnswer = Int.random(in: 0 ..< 3)
     
     @State private var resultAlertTitle = ""
+    
+    @State private var score = 0
+    
+//    MARK: - Body
     
     var body: some View {
         ZStack {
@@ -75,7 +86,7 @@ struct ContentView: View {
                 Spacer()
                 Spacer()
                 
-                Text("Score: ???")
+                Text("Score: \(score)")
                     .font(.title.bold())
                     .foregroundStyle(.white)
                     .padding(.vertical)
@@ -86,25 +97,74 @@ struct ContentView: View {
         }
         .alert(resultAlertTitle, isPresented: $showingResultAlert) {
             Button("Continue", role: .cancel, action: reshuffleGame)
+            Button("Restart", role: .destructive, action: restartGame)
         } message: {
-            Text("Your score is ???")
+            Text("Your score is \(score)")
+        }
+        .alert("Congratulations!", isPresented: $showingCongratsAlert) {
+            Button("Restart", role: .cancel, action: restartGame)
+                .onTapGesture {
+                    playHaptic(with: .heavy)
+                }
+        } message: {
+            Text("You've got 10 flags right!\nNow you can restart the game.")
+        }
+        .confettiCannon(counter: $confettiCounter, num: 50, radius: 500)
+    }
+    
+//    MARK: - Methods
+    
+    func flagButtonTapped(_ number: Int) {
+        let feedbackType: UINotificationFeedbackGenerator.FeedbackType
+        if number == correctAnswer {
+            feedbackType = .success
+            resultAlertTitle = "Bravo!"
+            score += 1
+        } else {
+            feedbackType = .error
+            resultAlertTitle = "Try again."
+            if score > 0 {
+                score -= 1
+            }
+        }
+        if score < 10 {
+            notifyHaptic(with: feedbackType)
+            showingResultAlert.toggle()
+        } else {
+//            Confetti animation
+            playConfettiHaptic()
+            confettiCounter += 1
+            showingCongratsAlert.toggle()
         }
     }
     
-    func flagButtonTapped(_ number: Int) {
-        if number == correctAnswer {
-            resultAlertTitle = "Bravo!"
-        } else {
-            resultAlertTitle = "Try again."
-        }
-        showingResultAlert.toggle()
+    func restartGame() {
+        score = 0
+        reshuffleGame()
     }
     
     func reshuffleGame() {
+        playHaptic(with: .soft)
         countries.shuffle()
         correctAnswer = Int.random(in: 0 ..< 3)
     }
+    
+//    MARK: - Haptics
+    
+    func playHaptic(with feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle) {
+        UIImpactFeedbackGenerator(style: feedbackStyle).impactOccurred()
+    }
+    
+    func notifyHaptic(with feedbackType: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(feedbackType)
+    }
+    
+    func playConfettiHaptic() {
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 1)
+    }
 }
+
+// MARK: - Previews
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
